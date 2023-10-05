@@ -1,4 +1,5 @@
 import { Cell } from "@tanstack/react-table"
+import moment from 'moment';
 
 interface DataTableRowProps<TData, TValue> {
   cellInfo: Cell<TData, TValue>
@@ -6,11 +7,12 @@ interface DataTableRowProps<TData, TValue> {
 }
 
 export function DataTableRow<TData, TValue>({ cellInfo, cellType }: DataTableRowProps<TData, TValue>) {
+
   return (
     <div className={`${cellType != 'date' && 'line-clamp-1'}`}>
       { 
         cellType == 'date' ? 
-          new Date(cellInfo.getValue() as string).toLocaleString() : 
+          moment.utc(cellInfo.getValue() as string).format("DD/MM/YYYY HH:mm:ss"):
           cellInfo.getValue() as string 
       }
     </div>
