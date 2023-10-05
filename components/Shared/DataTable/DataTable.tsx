@@ -182,6 +182,7 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   onClick={() => onClick && onClick(row)}
                   key={row.id}
+                  role="button"
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (

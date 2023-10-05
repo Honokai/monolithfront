@@ -1,9 +1,9 @@
 'use client';
 
+import * as z from "zod";
 import { DataTable } from "@/components/Shared/DataTable/DataTable"
 import { DataTableColumnHeader } from "@/components/Shared/DataTable/DataTableColumnHeader";
 import { ColumnDef, ColumnFiltersState, Row, SortingState } from "@tanstack/react-table"
-import { useState } from "react";
 import {
   useInfiniteQuery,
   QueryClient,
@@ -18,26 +18,20 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
+import { Ticket, TicketApiResponse } from "@/lib/types";
+import { getData } from "@/lib/functions";
 import { Input } from "@/components/ui/input";
-
-export interface Ticket {
-  ticket_id: string
-  requester: string
-  request: string
-  created_at: string
-  updated_at: string
-  priority: string
-  subcategory: {
-    subcategory_id: string,
-    name: string,
-  }
-  assignee: null|{
-    id: string,
-    name: string
-  }
-}
+import { useForm } from "react-hook-form";
+import { CardContent, CardFooter } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Label } from "@/components/ui/label";
+import { ArrowRight } from "lucide-react";
+import moment from "moment";
 
 export const columns: ColumnDef<Ticket>[] = [
   {
@@ -100,15 +94,6 @@ export const columns: ColumnDef<Ticket>[] = [
   },
 ]
 
-export type TicketApiResponse = {
-  data: Ticket[]
-  meta: {
-    current_page: number,
-    total: number,
-    last_page: number
-  }
-}
-
 const queryClient = new QueryClient()
 
 export default function Wrapper({ params }: { params: { department: string } }) {
@@ -120,6 +105,13 @@ export default function Wrapper({ params }: { params: { department: string } }) 
     </div>
   )
 }
+
+const formSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(10, {
+    message: "Password must be at least 10 characters.",
+  })
+})
 
 export function Page({ params }: { params: { department: string } }) {
   const ref = React.useRef<HTMLTableSectionElement>(null)
@@ -136,29 +128,17 @@ export function Page({ params }: { params: { department: string } }) {
     setTicket(ticketReponse.data.data)
   }
 
-  async function getData(pageParam?: string): Promise<TicketApiResponse> {
-    let url = pageParam ? pageParam + `&department=${params.department}` : `/tickets?department=${params.department}`// + (pageParam ? `&page=${pageParam}` : "")
-    
-    columnFilters.forEach(filter => {
-      if(filter.value.value != undefined && filter.value.value != "") {
-        url += `&queryParameters[${filter.id}][value]=${filter.value.value}&queryParameters[${filter.id}][operator]=${filter.value.type}`
-      }
-    })
-
-    sorting?.forEach(sortedField => {
-      url += `&sortField[${sortedField.id}]=${sortedField.desc ? 'desc' : 'asc'}`
-    })
-
-    let data = await axiosClient.get(url).then(res => {
-      return res.data
-    });
-
-    return data;
-  }
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
   const { data, fetchNextPage, isFetching, isLoading } = useInfiniteQuery<TicketApiResponse>(
     ['tickets', sorting, columnFilters],
-    async ({ pageParam }) => await getData(pageParam),
+    async ({ pageParam }) => await getData(pageParam, params.department, columnFilters, sorting),
     {
       getPreviousPageParam: (firstPage) => firstPage.links.prev ?? undefined,
       refetchOnWindowFocus: false,
@@ -192,6 +172,12 @@ export function Page({ params }: { params: { department: string } }) {
     [fetchNextPage, isFetching, totalFetched, totalDBRowCount]
   )
 
+  function onSubmit(data: z.infer<typeof formSchema>) {
+    console.log(data)
+    // axiosClient.post("/auth/login", data).then(response => console.log(response.data))
+    //   .catch(e => console.log(e))
+  }
+
   React.useEffect(() => {
     fetchMoreOnBottomReached(ref.current)
   }, [fetchMoreOnBottomReached])
@@ -199,14 +185,97 @@ export function Page({ params }: { params: { department: string } }) {
   return (
     <div className="w-screen h-screen px-4">
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent>
+        <DialogContent className="md:w-screen max-w-screen-lg">
           
             {ticket ? (
               <>
                 <DialogHeader>
                   <DialogTitle># {ticket.ticket_id}</DialogTitle>
                 </DialogHeader>
-                <Input className="w-[180px] mb-2 block"/>
+                  <div className="flex">
+                    <div className="flex-1 p-2 [&>*:not(first-child)]:mt-1">
+                      <div className="flex flex-col [&>*]:my-1">
+                        <Label className="font-bold">Requester</Label>
+                        <Label>{ticket.requester}</Label>
+                      </div>
+                      <div className="flex flex-col [&>*]:my-1">
+                        <Label className="font-bold">Category</Label>
+                        <Label>{ticket.subcategory.name}</Label>
+                      </div>
+                      <div className="flex flex-col [&>*]:my-1">
+                        <Label className="font-bold">Created at</Label>
+                        <Label>{moment.utc(ticket.created_at).format("DD/MM/YYYY HH:mm:ss")}</Label>
+                      </div>
+                    </div>
+                    <div className="flex-[2]">
+                      <Form {...form}>
+                        <form action={"/sign-in"} onSubmit={form.handleSubmit(onSubmit)}>
+                          <CardContent>
+                            <div className="grid w-full items-center gap-4">
+                              <div className="flex flex-col space-y-1.5">
+                                <FormField
+                                  control={form.control}
+                                  defaultValue=""
+                                  name="email"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Requester</FormLabel>
+                                      <FormControl>
+                                        <>
+                                          <Input type="email" id="email" placeholder="" {...field} />
+                                          {form.formState.errors.email && (
+                                            <Alert variant="destructive">
+                                              <AlertDescription>
+                                                {form.formState.errors.email.message}
+                                              </AlertDescription>
+                                            </Alert>
+                                          )}
+                                        </>
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              <div className="flex flex-col space-y-1.5">
+                                <FormField
+                                  control={form.control}
+                                  defaultValue=""
+                                  name="password"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Password</FormLabel>
+                                      <FormControl>
+                                        <>
+                                          <div className="relative flex [&>svg]:mr-2">
+                                            <Input id="password" {...field}/>
+                                          </div>
+                                          {form.formState.errors.password && (
+                                            <Alert variant="destructive">
+                                              <AlertDescription>
+                                                {form.formState.errors.password.message}
+                                              </AlertDescription>
+                                            </Alert>
+                                            )}
+                                        </>
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                          <CardFooter className="flex flex-col">
+                            <div className="mb-4">
+                              <Link className="text-sm hover:text-primary/60 transition ease-linear duration-100" href={"/sign-up"}>Doesn't have an account? Sign up here.</Link>
+                            </div>
+                            <div className="flex w-full justify-center">
+                              <Button type="submit">Sign up now</Button>
+                            </div>
+                          </CardFooter>
+                        </form>
+                      </Form>
+                    </div>
+                  </div>
               </>
             ) : (
               <div role="status" className="p-10 text-center">
