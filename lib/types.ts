@@ -13,6 +13,11 @@ export interface Ticket {
     id: string,
     name: string
   }
+  responses: null|{
+    id: number,
+    inquiry: string,
+    created_at: string
+  }[]
 }
 
 export type TicketApiResponse = {

@@ -21,17 +21,16 @@ import {
 } from "@/components/ui/dialog"
 import { Ticket, TicketApiResponse } from "@/lib/types";
 import { getData } from "@/lib/functions";
-import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
-import Link from "next/link";
+import { Form, FormField, FormItem, FormControl } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Label } from "@/components/ui/label";
-import { ArrowRight } from "lucide-react";
 import moment from "moment";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const columns: ColumnDef<Ticket>[] = [
   {
@@ -51,6 +50,7 @@ export const columns: ColumnDef<Ticket>[] = [
   {
     id: "subcategory.name",
     accessorKey: "subcategory.name",
+    accessorFn: (originalRow) => {return `${originalRow.subcategory.category.name} - ${originalRow.subcategory.name}`},
     header: (header) => <DataTableColumnHeader column={header.column} title="Category" />,
     cell: (cell) => <DataTableRow cellInfo={cell.cell}/>,
     meta: {
@@ -107,10 +107,7 @@ export default function Wrapper({ params }: { params: { department: string } }) 
 }
 
 const formSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(10, {
-    message: "Password must be at least 10 characters.",
-  })
+  response: z.string().min(2, "Response should be longer than 2 characters"),
 })
 
 export function Page({ params }: { params: { department: string } }) {
@@ -131,8 +128,7 @@ export function Page({ params }: { params: { department: string } }) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      response: "",
     },
   });
 
@@ -173,9 +169,8 @@ export function Page({ params }: { params: { department: string } }) {
   )
 
   function onSubmit(data: z.infer<typeof formSchema>) {
-    console.log(data)
-    // axiosClient.post("/auth/login", data).then(response => console.log(response.data))
-    //   .catch(e => console.log(e))
+    axiosClient.put(`/tickets/${ticket?.ticket_id}`, data).then(response => console.log(response.data))
+      .catch(e => console.log(e))
   }
 
   React.useEffect(() => {
@@ -196,15 +191,15 @@ export function Page({ params }: { params: { department: string } }) {
                     <div className="flex-1 p-2 [&>*:not(first-child)]:mt-1">
                       <div className="flex flex-col [&>*]:my-1">
                         <Label className="font-bold">Requester</Label>
-                        <Label>{ticket.requester}</Label>
+                        <Label className="text-muted-foreground">{ticket.requester}</Label>
                       </div>
                       <div className="flex flex-col [&>*]:my-1">
                         <Label className="font-bold">Category</Label>
-                        <Label>{ticket.subcategory.name}</Label>
+                        <Label className="text-muted-foreground">{ticket.subcategory.name}</Label>
                       </div>
                       <div className="flex flex-col [&>*]:my-1">
                         <Label className="font-bold">Created at</Label>
-                        <Label>{moment.utc(ticket.created_at).format("DD/MM/YYYY HH:mm:ss")}</Label>
+                        <Label className="text-muted-foreground">{moment.utc(ticket.created_at).format("DD/MM/YYYY HH:mm:ss")}</Label>
                       </div>
                     </div>
                     <div className="flex-[2]">
@@ -216,17 +211,16 @@ export function Page({ params }: { params: { department: string } }) {
                                 <FormField
                                   control={form.control}
                                   defaultValue=""
-                                  name="email"
+                                  name="response"
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormLabel>Requester</FormLabel>
                                       <FormControl>
                                         <>
-                                          <Input type="email" id="email" placeholder="" {...field} />
-                                          {form.formState.errors.email && (
-                                            <Alert variant="destructive">
+                                          <Textarea rows={10} id="response" placeholder="Place your inquiry or update here" {...field} />
+                                          {form.formState.errors.response && (
+                                            <Alert variant="destructive" className="p-2">
                                               <AlertDescription>
-                                                {form.formState.errors.email.message}
+                                                {form.formState.errors.response.message}
                                               </AlertDescription>
                                             </Alert>
                                           )}
@@ -237,39 +231,29 @@ export function Page({ params }: { params: { department: string } }) {
                                 />
                               </div>
                               <div className="flex flex-col space-y-1.5">
-                                <FormField
-                                  control={form.control}
-                                  defaultValue=""
-                                  name="password"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>Password</FormLabel>
-                                      <FormControl>
-                                        <>
-                                          <div className="relative flex [&>svg]:mr-2">
-                                            <Input id="password" {...field}/>
+                                <ScrollArea className="h-80 rounded-md">
+                                  {
+                                    ticket.responses && ticket.responses.map(response => {
+                                      return (
+                                        <div key={response.id} className="p-2 rounded my-1">
+                                          <div className="flex text-sm" aria-level={1} role="heading">
+                                            <div className="flex-1 justify-end justify-items-center">User name</div>
+                                            <div className="flex-1 justify-end justify-items-center">{moment.utc(response.created_at).format("DD/MM/YYYY HH:mm:ss")}</div>
                                           </div>
-                                          {form.formState.errors.password && (
-                                            <Alert variant="destructive">
-                                              <AlertDescription>
-                                                {form.formState.errors.password.message}
-                                              </AlertDescription>
-                                            </Alert>
-                                            )}
-                                        </>
-                                      </FormControl>
-                                    </FormItem>
-                                  )}
-                                />
+                                          <div className="py-2">
+                                            {response.inquiry}
+                                          </div>
+                                        </div>
+                                      )
+                                    })
+                                  }
+                                </ScrollArea>
                               </div>
                             </div>
                           </CardContent>
                           <CardFooter className="flex flex-col">
-                            <div className="mb-4">
-                              <Link className="text-sm hover:text-primary/60 transition ease-linear duration-100" href={"/sign-up"}>Doesn't have an account? Sign up here.</Link>
-                            </div>
                             <div className="flex w-full justify-center">
-                              <Button type="submit">Sign up now</Button>
+                              <Button type="submit">Save</Button>
                             </div>
                           </CardFooter>
                         </form>
