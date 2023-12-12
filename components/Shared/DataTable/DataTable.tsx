@@ -20,8 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import React from "react"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import React, { useCallback } from "react"
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { EyeOpenIcon } from "@radix-ui/react-icons"
 import { useVirtual } from 'react-virtual'
@@ -83,6 +83,8 @@ export function DataTable<TData, TValue>({
       // rowSelection,
     },
   })
+
+  // const contextMenu = useCallback()
   
   const { rows } = table.getRowModel()
 
@@ -180,6 +182,7 @@ export function DataTable<TData, TValue>({
               const row = rows[virtualRow.index] as Row<Ticket>
               return (
                 <TableRow
+                  onContextMenu={(e) =>{}}  
                   onClick={() => onClick && onClick(row)}
                   key={row.id}
                   role="button"
